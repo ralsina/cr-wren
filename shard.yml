@@ -1,0 +1,13 @@
+name: cr-wren
+version: 0.1.0
+
+authors:
+  - Roberto Alsina <roberto.alsina@gmail.com>
+
+crystal: '>= 1.12.2'
+
+license: MIT
+
+targets:
+  wren:
+    main: src/cr-wren.cr
