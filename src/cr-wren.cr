@@ -1,5 +1,11 @@
+
+# A higher-level, more ergonomic wrapper
+module Wren
+  VERSION = "0.1.0"
+
+# A wrapper for the Wren language API
 @[Link(ldflags: "-lwren")]
-lib Wren
+lib API
   alias WrenReallocateFn = Void*
   alias WrenResolveModuleFn = Void*
   alias WrenLoadModuleFn = Void*
@@ -42,18 +48,19 @@ lib Wren
   fun wrenInterpret(WrenVM, module : LibC::Char*, script : LibC::Char*) : WrenInterpretResult
 end
 
-module Cr::Wren
-  VERSION = "0.1.0" # TODO: Put your code here
+
+  class VM
+  end 
 end
 
-config = Wren::WrenConfiguration.new
+config = Wren::API::WrenConfiguration.new
 
-Wren.wrenInitConfiguration(pointerof(config))
-config.writeFn = ->(_vm : Wren::WrenVM, text : LibC::Char*) : Nil { puts String.new(text) }
-config.errorFn = ->(_vm : Wren::WrenVM, type : Wren::WrenErrorType, _module : LibC::Char*, line : LibC::Int32T, message : LibC::Char*) : Nil {
+Wren::API.wrenInitConfiguration(pointerof(config))
+config.writeFn = ->(_vm : Wren::API::WrenVM, text : LibC::Char*) : Nil { puts String.new(text) }
+config.errorFn = ->(_vm : Wren::API::WrenVM, type : Wren::API::WrenErrorType, _module : LibC::Char*, line : LibC::Int32T, message : LibC::Char*) : Nil {
   puts "Error: #{type} in module #{String.new(_module)} line: #{line}"
   puts "Message: #{String.new(message)}"
 }
 
-vm = Wren.wrenNewVM(pointerof(config))
-result = Wren.wrenInterpret(vm, "main", "System.print(\"Hello, World!\")")
+vm = Wren::API.wrenNewVM(pointerof(config))
+Wren::API.wrenInterpret(vm, "main", "System.print(\"Hello, World!\")")

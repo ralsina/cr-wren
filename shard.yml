@@ -11,3 +11,7 @@ license: MIT
 targets:
   wren:
     main: src/cr-wren.cr
+
+development_dependencies:
+  ameba:
+    github: crystal-ameba/ameba
