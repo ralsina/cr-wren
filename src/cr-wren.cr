@@ -59,9 +59,17 @@ module Wren
 
       # TODO: Make these configurable in a nice way
       @config.writeFn = ->(_vm : Wren::API::WrenVM, text : LibC::Char*) : Nil { puts String.new(text) }
-      @config.errorFn = ->(_vm : Wren::API::WrenVM, type : Wren::API::WrenErrorType, _module : LibC::Char*, line : LibC::Int32T, message : LibC::Char*) : Nil {
-        puts "Error: #{type} in module #{String.new(_module)} line: #{line}"
-        puts "Message: #{String.new(message)}"
+      @config.errorFn = ->(_vm : Wren::API::WrenVM, type : Wren::API::WrenErrorType, _module : LibC::Char*, line : LibC::Int32T, msg : LibC::Char*) : Nil {
+        msg = String.new(msg)
+        _module = String.new(_module)
+        case type
+        when API::WrenErrorType::WREN_ERROR_COMPILE
+          puts "[#{_module} line #{line}] [Error] #{msg}"
+        when API::WrenErrorType::WREN_ERROR_STACK_TRACE
+          puts "[#{_module} line #{line}] #{msg}"
+        when API::WrenErrorType::WREN_ERROR_RUNTIME
+          puts "[Runtime Error] #{msg}"
+        end
       }
 
       # Initialize VM
@@ -74,7 +82,8 @@ module Wren
     end
 
     # Runs source, a string of Wren source code in a new fiber
-    # in the vm, in the context of resolved module mod
+    # in the vm, in the context of resolved module mod.
+    # Raises exceptions in case of compile or runtime errors
     def interpret(mod : String, source : String)
       result = API.wrenInterpret(@vm, mod, source)
       case result
