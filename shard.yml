@@ -10,7 +10,7 @@ license: MIT
 
 targets:
   wren:
-    main: src/cr-wren.cr
+    main: src/wren.cr
 
 development_dependencies:
   ameba:
