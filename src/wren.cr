@@ -41,13 +41,13 @@ module Wren
         end
       }
 
+      # Lookup wrapped functions and return them. This function is called by the
+      # Wren interpreter to find what to call when a foreign function is invoked
+      # See: https://wren.io/embedding/calling-c-from-wren.html
       @config.bindForeignMethodFn = ->(_vm : API::WrenVM, mod : LibC::Char*, obj : LibC::Char*, _is_static : Bool, signature : LibC::Char*) : API::WrenForeignMethodFn {
-        # TODO: Use this to make wrapping simpler
-        name, _args = String.new(signature).split("(", 2)
-        # TODO: figure out signatures
-        # num_args = args.count("_")
-        key = "#{String.new(mod)}::#{String.new(obj)}::#{name}"
-        API.wrenSetUserData(_vm, "foobar")
+        name, args = String.new(signature).split("(", 2)
+        num_args = args.count("_")
+        key = "#{String.new(mod)}::#{String.new(obj)}::#{name}::#{num_args}"
         VM.get_func(key)
       }
 
@@ -193,9 +193,9 @@ module Wren
 
     @@functions = {} of String => CallbackFunction
 
-    def register_function(mod : String, obj : String, name : String, cb : CallbackFunction)
-      key = "#{mod}::#{obj}::#{name}"
-      @@functions[key] = cb
+    def register_function(mod : String, obj : String, name : String, cb : {CallbackFunction, Int32})
+      key = "#{mod}::#{obj}::#{name}::#{cb[1]}"
+      @@functions[key] = cb[0]
     end
 
     # Wraps any proc with any number of arguments into a `CallbackFunction`
@@ -209,14 +209,15 @@ module Wren
     # they are casted using `as()` so if the actual argument passed from
     # Wren is the wrong type it *will* raise an exception.
     #
-    # FIXME: arity is not considered when looking up crystal functions
-    # so it *may* be wrong.
+    # You can register multiple functions for the same name if their arity
+    # is different.
+    #
     # FIXME: since Crystal is polymorphic by type+arity and Wren is only
-    # polymorphic by arity, so maybe support multiple functions wrapped
-    # together and dispatch to the one that matches signature of the
-    # received arguments?
+    # polymorphic by arity, so maybe support multiple functions of the
+    # same arity wrapped together and dispatch to the one that matches
+    # signature of the received arguments?
     macro wrap(vm_id, proc)
-      ->(_vm : API::WrenVM) {
+      {->(_vm : API::WrenVM) {
         # Define proc that does the inner work
         inner = {{proc.id}}
 
@@ -234,7 +235,7 @@ module Wren
 
         # Send result via slots
         vm._set_slot(0, result)
-      }
+      }, {{proc.args.size}}}
     end
   end
 end
@@ -269,11 +270,23 @@ vm.register_function(
   })
 )
 
+# Register a proc to add 3 floats. We can register the same function more than
+# once with different arity
+vm.register_function(
+  "main", "Math", "add",
+  Wren::VM.wrap("myvm", ->(a : Float64, b : Float64, c : Float64) : Float64 {
+    a + b + c
+  })
+)
+
 # Register it in the Wren side as foreign, use it.
 vm.interpret "main", %(
   class Math {
     foreign static add(a,b)
+    foreign static add(a,b,c)
   }
   System.print("2+3.5=")
   System.print(Math.add(2,3.5))
-) # 2+3.5=5.5
+  System.print("1+2+3=")
+  System.print(Math.add(1,2,3))
+) # 2+3.5=5.5  1+2+3=6
