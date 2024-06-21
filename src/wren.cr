@@ -10,10 +10,6 @@ module Wren
     @config : API::WrenConfiguration
     @vm : API::WrenVM
 
-    def self.get_func(x)
-      @@functions[x]
-    end
-
     @@vms = {} of String => VM
 
     def self.get_vm(vm)
@@ -193,9 +189,27 @@ module Wren
 
     @@functions = {} of String => CallbackFunction
 
+    def self.get_func(x)
+      @@functions[x]
+    end
+
     def register_function(mod : String, obj : String, name : String, cb : {CallbackFunction, Int32})
       key = "#{mod}::#{obj}::#{name}::#{cb[1]}"
       @@functions[key] = cb[0]
+    end
+
+    # Helper to cast to Float64 a bit harder than Crystal does
+    def _to_float64(v : Value) : Float64
+      case v
+      when Number, String
+        Float64.new(v)
+      when Bool
+        Float64.new(v.to_unsafe)
+      when Nil
+        0.0
+      else
+        v.as(Float64)
+      end
     end
 
     # Wraps any proc with any number of arguments into a `CallbackFunction`
@@ -229,13 +243,17 @@ module Wren
         # forcibly casted to expected signature
         result = inner.call(
           {% for t, i in proc.args %}
-            args[{{i}}].as({{ t.restriction }}),
+            {% if t.restriction.stringify == "Float64" %}
+              vm._to_float64(args[{{i}}]),
+            {% else %}
+              args[{{i}}].as({{t.restriction}}),
+            {% end %}
           {% end %}
         )
-
         # Send result via slots
         vm._set_slot(0, result)
-      }, {{proc.args.size}}}
+        }, {{proc.args.size}}
+      }
     end
   end
 end
@@ -288,5 +306,5 @@ vm.interpret "main", %(
   System.print("2+3.5=")
   System.print(Math.add(2,3.5))
   System.print("1+2+3=")
-  System.print(Math.add(1,2,3))
+  System.print(Math.add("1",2,3))
 ) # 2+3.5=5.5  1+2+3=6
