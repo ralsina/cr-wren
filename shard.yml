@@ -9,8 +9,8 @@ crystal: '>= 1.12.2'
 license: MIT
 
 targets:
-  wren:
-    main: src/wren.cr
+  main:
+    main: examples/main.cr
 
 development_dependencies:
   ameba:
