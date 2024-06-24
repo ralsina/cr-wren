@@ -7,7 +7,7 @@ module Wren
 
   # High level interface to Wren
   class VM
-    @config : API::WrenConfiguration
+    @config : API::WrenConfiguration = API::WrenConfiguration.new
     @vm : API::WrenVM
 
     @@vms = {} of String => VM
@@ -16,26 +16,28 @@ module Wren
       @@vms[vm]
     end
 
+    # Called by `System.print` in Wren
+    @write_fn = ->(_vm : API::WrenVM, text : LibC::Char*) : Nil { puts String.new(text) }
+    # Called by Wren when there are errors
+    @error_fn = ->(_vm : API::WrenVM, type : API::WrenErrorType, _module : LibC::Char*, line : LibC::Int32T, msg : LibC::Char*) : Nil {
+      msg = String.new(msg)
+      _module = String.new(_module) if _module
+      case type
+      when API::WrenErrorType::WREN_ERROR_COMPILE
+        puts "[#{_module} line #{line}] [Error] #{msg}"
+      when API::WrenErrorType::WREN_ERROR_STACK_TRACE
+        puts "[#{_module} line #{line}] #{msg}"
+      when API::WrenErrorType::WREN_ERROR_RUNTIME
+        puts "[Runtime Error] #{msg}"
+      end
+    }
+
     def initialize(id : String)
       # Create configuration and set it to reasonable values
-      @config = API::WrenConfiguration.new
       API.wrenInitConfiguration(pointerof(@config))
 
-      # Called by `System.print` in Wren
-      @config.writeFn = ->(_vm : API::WrenVM, text : LibC::Char*) : Nil { puts String.new(text) }
-      # Called by Wren when there are errors
-      @config.errorFn = ->(_vm : API::WrenVM, type : API::WrenErrorType, _module : LibC::Char*, line : LibC::Int32T, msg : LibC::Char*) : Nil {
-        msg = String.new(msg)
-        _module = String.new(_module) if _module
-        case type
-        when API::WrenErrorType::WREN_ERROR_COMPILE
-          puts "[#{_module} line #{line}] [Error] #{msg}"
-        when API::WrenErrorType::WREN_ERROR_STACK_TRACE
-          puts "[#{_module} line #{line}] #{msg}"
-        when API::WrenErrorType::WREN_ERROR_RUNTIME
-          puts "[Runtime Error] #{msg}"
-        end
-      }
+      @config.writeFn = @write_fn
+      @config.errorFn = @error_fn
 
       # Lookup wrapped functions and return them. This function is called by the
       # Wren interpreter to find what to call when a foreign function is invoked

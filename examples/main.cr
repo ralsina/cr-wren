@@ -20,7 +20,6 @@ puts vm.call("main", "add", "call", ["1", "2"]) # => "12"
 # probably a bug somewhere
 # puts vm.call("main", "add", "call", [[1, 2], [3, 4]]) # => [1,2,3,4]
 
-
 # Register a Crystal proc to add floats into the Wren VM
 vm.register_function(
   "main", "Math", "add",
